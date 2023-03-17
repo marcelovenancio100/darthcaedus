@@ -1,8 +1,8 @@
 import pygame
 
+from entity import Entity
 from settings import *
 from utils import import_folder
-from entity import Entity
 
 
 class Player(Entity):
@@ -44,6 +44,10 @@ class Player(Entity):
         self.energy = self.stats['energy'] * 0.5
         self.speed = self.stats['speed']
         self.exp = 123
+
+        self.vulnerable = True
+        self.hit_time = None
+        self.invincibility_duration = 500
 
         self.obstacle_sprites = obstacle_sprites
 
@@ -132,7 +136,7 @@ class Player(Entity):
         current_time = pygame.time.get_ticks()
 
         if self.attacking:
-            if (current_time - self.attack_time) >= self.attack_cooldown:
+            if (current_time - self.attack_time) >= (self.attack_cooldown + WEAPON_DATA[self.weapon]['cooldown']):
                 self.attacking = False
                 self.destroy_attack()
 
@@ -144,6 +148,10 @@ class Player(Entity):
             if (current_time - self.magic_switch_time) >= self.weapon_switch_cooldown:
                 self.can_switch_magic = True
 
+        if not self.vulnerable:
+            if (current_time - self.hit_time) >= self.invincibility_duration:
+                self.vulnerable = True
+
     def animate(self):
         animation = self.animations[self.status]
         self.frame_index += self.animation_speed
@@ -153,6 +161,17 @@ class Player(Entity):
 
         self.image = animation[int(self.frame_index)]
         self.rect = self.image.get_rect(center=self.hitbox.center)
+
+        if not self.vulnerable:
+            alpha = self.wave_value()
+            self.image.set_alpha(alpha)
+        else:
+            self.image.set_alpha(255)
+
+    def get_full_weapon_damage(self):
+        base_damage = self.stats['attack']
+        weapon_damage = WEAPON_DATA[self.weapon]['damage']
+        return base_damage + weapon_damage
 
     def update(self):
         self.input()

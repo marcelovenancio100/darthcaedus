@@ -1,12 +1,10 @@
-import pygame
-
-from settings import *
 from entity import Entity
+from settings import *
 from utils import *
 
 
 class Enemy(Entity):
-    def __init__(self, monster, position, groups, obstacle_sprites):
+    def __init__(self, monster, position, groups, obstacle_sprites, damage_player):
         super().__init__(groups)
         self.sprite_type = 'enemy'
 
@@ -31,6 +29,11 @@ class Enemy(Entity):
         self.can_attack = True
         self.attack_cooldown = 400
         self.attack_time = None
+        self.damage_player = damage_player
+
+        self.vulnerable = True
+        self.hit_time = None
+        self.invincibility_duration = 300
 
         self.obstacle_sprites = obstacle_sprites
 
@@ -68,6 +71,7 @@ class Enemy(Entity):
     def actions(self, player):
         if self.status == 'attack':
             self.attack_time = pygame.time.get_ticks()
+            self.damage_player(self.damage, self.attack_type)
         elif self.status == 'move':
             self.direction = self.get_player_distance_direction(player)[1]
         else:
@@ -86,17 +90,49 @@ class Enemy(Entity):
         self.image = animation[int(self.frame_index)]
         self.rect = self.image.get_rect(center=self.hitbox.center)
 
-    def cooldown(self):
-        if not self.can_attack:
-            current_time = pygame.time.get_ticks()
+        if not self.vulnerable:
+            alpha = self.wave_value()
+            self.image.set_alpha(alpha)
+        else:
+            self.image.set_alpha(255)
 
+    def cooldowns(self):
+        current_time = pygame.time.get_ticks()
+
+        if not self.can_attack:
             if (current_time - self.attack_time) >= self.attack_cooldown:
                 self.can_attack = True
 
+        if not self.vulnerable:
+            if (current_time - self.hit_time) >= self.invincibility_duration:
+                self.vulnerable = True
+
+    def get_damage(self, player, attack_type):
+        if self.vulnerable:
+            self.direction = self.get_player_distance_direction(player)[1]
+
+            if attack_type == 'weapon':
+                self.health -= player.get_full_weapon_damage()
+            else:
+                pass
+
+            self.hit_time = pygame.time.get_ticks()
+            self.vulnerable = False
+
+    def check_death(self):
+        if self.health <= 0:
+            self.kill()
+
+    def hit_reaction(self):
+        if not self.vulnerable:
+            self.direction *= -self.resistance
+
     def update(self):
+        self.hit_reaction()
         self.move(self.speed)
         self.animate()
-        self.cooldown()
+        self.cooldowns()
+        self.check_death()
 
     def enemy_update(self, player):
         self.get_status(player)
