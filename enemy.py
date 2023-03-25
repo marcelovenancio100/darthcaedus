@@ -4,7 +4,7 @@ from utils import *
 
 
 class Enemy(Entity):
-    def __init__(self, monster, position, groups, obstacle_sprites, damage_player):
+    def __init__(self, monster, position, groups, obstacle_sprites, damage_player, trigger_death_particles):
         super().__init__(groups)
         self.sprite_type = 'enemy'
 
@@ -16,6 +16,7 @@ class Enemy(Entity):
         self.rect = self.image.get_rect(topleft=position)
         self.hitbox = self.rect.inflate(0, -10)
 
+        self.monster = monster
         self.stats = MONSTER_DATA[monster]
         self.health = self.stats['health']
         self.exp = self.stats['exp']
@@ -30,6 +31,7 @@ class Enemy(Entity):
         self.attack_cooldown = 400
         self.attack_time = None
         self.damage_player = damage_player
+        self.trigger_death_particles = trigger_death_particles
 
         self.vulnerable = True
         self.hit_time = None
@@ -122,6 +124,7 @@ class Enemy(Entity):
     def check_death(self):
         if self.health <= 0:
             self.kill()
+            self.trigger_death_particles(self.rect.center, self.monster)
 
     def hit_reaction(self):
         if not self.vulnerable:
